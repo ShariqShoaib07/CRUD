@@ -16,7 +16,7 @@ if ($result->num_rows > 0) {
 $sql = "DELETE FROM userrs WHERE id = $id";
 
 if ($conn->query($sql) === TRUE) {
-    header("Location: read.php");
+    header("Location: admin_dashboard.php");
 } else {
     echo "Error deleting record: " . $conn->error;
 }

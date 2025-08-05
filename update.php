@@ -94,7 +94,7 @@ $sql = "UPDATE userrs SET name='$name', email='$email', phone='$phone', $imageUp
 if ($conn->query($sql) === TRUE) {
     // Clear stored form values on success
     unset($_SESSION['form_values']);
-    header("Location: read.php");
+    header("Location: admin_dashboard.php");
     exit();
 } else {
     header("Location: error-display.php?error=" . urlencode($conn->error) . "&redirect=edit.php?id=$id");

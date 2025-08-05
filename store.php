@@ -1,87 +1,131 @@
 <?php
+session_start();
 include 'db.php';
 
-if (!defined('UPLOAD_DIR')) define('UPLOAD_DIR', 'uploads/');
-if (!defined('MAX_FILE_SIZE')) define('MAX_FILE_SIZE', 2 * 1024 * 1024); // 2MB
-if (!defined('ALLOWED_TYPES')) define('ALLOWED_TYPES', ['image/jpeg', 'image/png', 'image/gif']);
+// Constants for file uploads
+define('UPLOAD_DIR', 'uploads/');
+define('MAX_FILE_SIZE', 2 * 1024 * 1024); // 2MB
+define('ALLOWED_TYPES', ['image/jpeg', 'image/png', 'image/gif']);
 
-$name = $conn->real_escape_string($_POST['name']);
-$email = $conn->real_escape_string($_POST['email']);
-$phone = $conn->real_escape_string($_POST['phone']);
+// Check if request method is POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("HTTP/1.1 405 Method Not Allowed");
+    exit("Invalid request method");
+}
 
+// Initialize variables and error array
 $errors = [];
-
-// Validate name
-if (empty($name)) {
-    $errors[] = "Name field is required";
-}
-
-// Check if email exists
-$check_email = $conn->query("SELECT id FROM userrs WHERE email = '$email'");
-if ($check_email->num_rows > 0) {
-    $errors[] = "Email '$email' is already registered";
-}
-
-// Check if phone exists
-if (!empty($phone)) {
-    $check_phone = $conn->query("SELECT id FROM userrs WHERE phone = '$phone'");
-    if ($check_phone->num_rows > 0) {
-        $errors[] = "Phone number '$phone' is already in use";
-    }
-}
-
-// Handle image upload
+$name = $email = $phone = '';
 $imageName = null;
-if (!empty($_FILES['image']['name'])) {
-    $file = $_FILES['image'];
-    
-    // Validate file
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        $errors[] = "File upload error: " . $file['error'];
-    } elseif ($file['size'] > MAX_FILE_SIZE) {
-        $errors[] = "File is too large. Maximum size is " . (MAX_FILE_SIZE / 1024 / 1024) . "MB";
-    } elseif (!in_array($file['type'], ALLOWED_TYPES)) {
-        $errors[] = "Invalid file type. Only JPG, PNG, and GIF are allowed";
+
+// Validate and sanitize inputs
+try {
+    // Validate required fields
+    if (empty($_POST['name'])) {
+        $errors[] = "Name field is required";
     } else {
-        // Generate unique filename
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $imageName = uniqid() . '.' . $ext;
-        $destination = UPLOAD_DIR . $imageName;
+        $name = trim($_POST['name']);
+    }
+
+    if (empty($_POST['email'])) {
+        $errors[] = "Email field is required";
+    } elseif (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "Invalid email format";
+    } else {
+        $email = trim($_POST['email']);
+    }
+
+    $phone = !empty($_POST['phone']) ? trim($_POST['phone']) : '';
+
+    // Check if email exists (using prepared statement)
+    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $stmt->store_result();
+    
+    if ($stmt->num_rows > 0) {
+        $errors[] = "Email '$email' is already registered";
+    }
+    $stmt->close();
+
+    // Check if phone exists (if provided)
+    if (!empty($phone)) {
+        $stmt = $conn->prepare("SELECT id FROM users WHERE phone = ?");
+        $stmt->bind_param("s", $phone);
+        $stmt->execute();
+        $stmt->store_result();
         
-        if (!move_uploaded_file($file['tmp_name'], $destination)) {
-            $errors[] = "Failed to save uploaded file";
+        if ($stmt->num_rows > 0) {
+            $errors[] = "Phone number '$phone' is already in use";
+        }
+        $stmt->close();
+    }
+
+    // Handle image upload if provided
+    if (!empty($_FILES['image']['name'])) {
+        $file = $_FILES['image'];
+        
+        // Validate file
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            $errors[] = "File upload error: " . $file['error'];
+        } elseif ($file['size'] > MAX_FILE_SIZE) {
+            $errors[] = "File is too large. Maximum size is " . (MAX_FILE_SIZE / 1024 / 1024) . "MB";
+        } elseif (!in_array($file['type'], ALLOWED_TYPES)) {
+            $errors[] = "Invalid file type. Only JPG, PNG, and GIF are allowed";
+        } else {
+            // Generate unique filename
+            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $imageName = uniqid() . '.' . $ext;
+            $destination = UPLOAD_DIR . $imageName;
+            
+            // Create upload directory if it doesn't exist
+            if (!is_dir(UPLOAD_DIR)) {
+                mkdir(UPLOAD_DIR, 0755, true);
+            }
+            
+            if (!move_uploaded_file($file['tmp_name'], $destination)) {
+                $errors[] = "Failed to save uploaded file";
+            }
         }
     }
-}
 
-// If any errors, display them with preserved form values
-if (!empty($errors)) {
-    // Store form values in session
-    session_start();
-    $_SESSION['form_values'] = [
-        'name' => htmlspecialchars($_POST['name']),
-        'email' => htmlspecialchars($_POST['email']),
-        'phone' => htmlspecialchars($_POST['phone'])
-    ];
-    
-    header("Location: error-display.php?errors=" . urlencode(json_encode($errors)) . "&type=Validation Errors&redirect=create.php");
-    exit();
-}
-
-// Proceed with insertion if no errors
-$sql = "INSERT INTO userrs (name, email, phone, image) VALUES ('$name', '$email', '$phone', " . 
-       ($imageName ? "'$imageName'" : "NULL") . ")";
-
-if ($conn->query($sql) === TRUE) {
-    // Clear any stored form values on success
-    if (session_status() === PHP_SESSION_ACTIVE) {
-        unset($_SESSION['form_values']);
+    // If any errors, redirect back with error messages
+    if (!empty($errors)) {
+        $_SESSION['form_values'] = [
+            'name' => htmlspecialchars($name),
+            'email' => htmlspecialchars($email),
+            'phone' => htmlspecialchars($phone)
+        ];
+        $_SESSION['errors'] = $errors;
+        header("Location: create.php");
+        exit();
     }
-    header("Location: read.php");
-    exit();
-} else {
-    $errors[] = "Database error: " . $conn->error;
-    header("Location: error-display.php?errors=" . urlencode(json_encode($errors)) . "&type=Database Error&redirect=create.php");
+
+    // Proceed with insertion using prepared statement
+    $stmt = $conn->prepare("INSERT INTO users (name, email, phone, image) VALUES (?, ?, ?, ?)");
+    $imageParam = !empty($imageName) ? $imageName : null;
+    $stmt->bind_param("ssss", $name, $email, $phone, $imageParam);
+    
+    if ($stmt->execute()) {
+        // Clear any stored form values on success
+        if (isset($_SESSION['form_values'])) {
+            unset($_SESSION['form_values']);
+        }
+        $_SESSION['success_message'] = "User created successfully";
+        header("Location: read.php");
+        exit();
+    } else {
+        throw new Exception("Database error: " . $stmt->error);
+    }
+} catch (Exception $e) {
+    // Clean up uploaded file if there was an error after upload
+    if (!empty($imageName) && file_exists(UPLOAD_DIR . $imageName)) {
+        unlink(UPLOAD_DIR . $imageName);
+    }
+    
+    $errors[] = $e->getMessage();
+    $_SESSION['errors'] = $errors;
+    header("Location: create.php");
     exit();
 }
 ?>

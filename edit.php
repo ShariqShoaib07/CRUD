@@ -42,7 +42,7 @@ $form_values = $_SESSION['form_values'] ?? [
             <input type="file" name="image" accept="image/jpeg,image/png,image/gif"><br><br>
             
             <div class="form-actions">
-                <a href="read.php" class="button go-back">Go Back</a>
+                <a href="admin_dashboard.php" class="button go-back">Go Back</a>
                 <button class="button" type="submit">Update</button>
             </div>
         </form>

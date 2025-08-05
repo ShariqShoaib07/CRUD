@@ -1,5 +1,7 @@
 <?php 
 session_start();
+include 'db.php';
+
 $form_values = $_SESSION['form_values'] ?? [
     'name' => '',
     'email' => '',
@@ -25,7 +27,7 @@ $form_values = $_SESSION['form_values'] ?? [
             <label>Phone:</label><br>
             <input type="text" name="phone" value="<?= $form_values['phone'] ?>"><br><br>
             <div class="form-actions">
-                <button onclick="window.location.href='read.php'" class="button" style="background: linear-gradient(135deg, #00c6ff, #0072ff)">Go Back</button>
+                <button onclick="window.location.href='admin_dashboard.php'" class="button" style="background: linear-gradient(135deg, #00c6ff, #0072ff)">Go Back</button>
                 <button class="button" type="submit">Save</button>
             </div>
         </form>
