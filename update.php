@@ -23,7 +23,12 @@ session_start();
 $_SESSION['form_values'] = [
     'name' => htmlspecialchars($_POST['name']),
     'email' => htmlspecialchars($_POST['email']),
-    'phone' => htmlspecialchars($_POST['phone'])
+    'phone' => htmlspecialchars($_POST['phone']),
+    'street' => htmlspecialchars($_POST['street']),
+    'city' => htmlspecialchars($_POST['city']),
+    'state' => htmlspecialchars($_POST['state']),
+    'postal_code' => htmlspecialchars($_POST['postal_code']),
+    'country' => htmlspecialchars($_POST['country'])
 ];
 
 if ($removeImage) {
@@ -90,8 +95,33 @@ if (!empty($phone)) {
     }
 }
 
+// Update user table
 $sql = "UPDATE userrs SET name='$name', email='$email', phone='$phone', $imageUpdate WHERE id=$id";
 if ($conn->query($sql) === TRUE) {
+
+    // ✅ After updating user info, update address table
+    $street = $conn->real_escape_string($_POST['street']);
+    $city = $conn->real_escape_string($_POST['city']);
+    $state = $conn->real_escape_string($_POST['state']);
+    $postal_code = $conn->real_escape_string($_POST['postal_code']);
+    $country = $conn->real_escape_string($_POST['country']);
+
+    // Check if address exists
+    $addressExists = $conn->query("SELECT id FROM addresses WHERE user_id = $id")->num_rows > 0;
+
+    if ($addressExists) {
+        $conn->query("UPDATE addresses SET 
+            street = '$street', 
+            city = '$city', 
+            state = '$state', 
+            postal_code = '$postal_code', 
+            country = '$country' 
+            WHERE user_id = $id");
+    } else {
+        $conn->query("INSERT INTO addresses (user_id, street, city, state, postal_code, country) 
+            VALUES ($id, '$street', '$city', '$state', '$postal_code', '$country')");
+    }
+
     // Clear stored form values on success
     unset($_SESSION['form_values']);
     header("Location: admin_dashboard.php");

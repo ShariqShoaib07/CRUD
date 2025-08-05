@@ -13,13 +13,13 @@ if (!isset($_SESSION['user_id'])) {
 <head>
     <title>User Dashboard</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Include DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
 </head>
 <body>
     <div class="dashboard-header">
         <h2>👤 User Dashboard</h2>
         <div class="user-info">
-            Welcome, <?= htmlspecialchars($_SESSION['username']) ?> | 
+            
             <a href="logout.php" class="button">Logout</a>
         </div>
     </div>
@@ -33,11 +33,16 @@ if (!isset($_SESSION['user_id'])) {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Phone</th>
+                    <th>Address</th>
                 </tr>
             </thead>
             <tbody>
                 <?php
-                $sql = "SELECT * FROM userrs";
+                // Fetch users with addresses
+                $sql = "SELECT u.id, u.name, u.email, u.phone, u.image, 
+                               a.street, a.city, a.state, a.country, a.postal_code
+                        FROM userrs u
+                        LEFT JOIN addresses a ON u.id = a.user_id";
                 $result = $conn->query($sql);
                 if ($result->num_rows > 0):
                     while ($row = $result->fetch_assoc()): ?>
@@ -53,6 +58,19 @@ if (!isset($_SESSION['user_id'])) {
                         <td><?= htmlspecialchars($row['name']) ?></td>
                         <td><?= htmlspecialchars($row['email']) ?></td>
                         <td><?= htmlspecialchars($row['phone']) ?></td>
+                        <td>
+                            <?php
+                            if (!empty($row['street'])) {
+                                echo htmlspecialchars($row['street']) . ', ' .
+                                     htmlspecialchars($row['city']) . ', ' .
+                                     htmlspecialchars($row['state']) . ', ' .
+                                     htmlspecialchars($row['country']) . ', ' .
+                                     htmlspecialchars($row['postal_code']);
+                            } else {
+                                echo 'No address';
+                            }
+                            ?>
+                        </td>
                     </tr>
                 <?php endwhile; endif; ?>
             </tbody>

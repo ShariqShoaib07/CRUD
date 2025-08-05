@@ -14,66 +14,15 @@ if (!isset($_SESSION['user_id']) || !$_SESSION['is_admin']) {
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-    <style>
-        .default-avatar {
-            width: 50px;
-            height: 50px;
-            background: #555;
-            border-radius: 5px;
-            display: inline-block;
-        }
-        .dashboard-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            margin-bottom: 20px;
-        }
-        .user-info {
-            font-size: 16px;
-        }
-        .table-container {
-            margin: 0 15px;
-        }
-        .button {
-            padding: 8px 15px;
-            background: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            display: inline-block;
-            margin: 0 5px;
-        }
-        .button:hover {
-            background: #0069d9;
-        }
-        .add-new {
-            background: #28a745;
-        }
-        .add-new:hover {
-            background: #218838;
-        }
-        .actions {
-            display: flex;
-            gap: 5px;
-        }
-    </style>
+    
 </head>
 <body>
     <div class="dashboard-header">
         <h2>👑 Admin Dashboard</h2>
         <div class="user-info">
-            Welcome, <?= htmlspecialchars($_SESSION['username']) ?>
-            <?php if ($_SESSION['is_super_admin']): ?>
-                (Super Admin)
-            <?php endif; ?>
-            | <a href="logout.php" class="button">Logout</a>
+            <a href="logout.php" class="button">Logout</a>
         </div>
-    </div>
-    
-    <h2>📋 User List</h2>    
+    </div>  
     <div class="table-container">
         <table id="usersTable" class="display" style="width:100%">
             <thead>
@@ -83,6 +32,7 @@ if (!isset($_SESSION['user_id']) || !$_SESSION['is_admin']) {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Phone</th>
+                    <th>Address</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -117,6 +67,14 @@ if (!isset($_SESSION['user_id']) || !$_SESSION['is_admin']) {
                 { data: 'name' },
                 { data: 'email' },
                 { data: 'phone' },
+                { 
+                    data: 'address', 
+                    render: function(data) {
+                        return data ? 
+                            `${data.street}, ${data.city}, ${data.state}, ${data.country}, ${data.postal_code}` : 
+                            'No address';
+                    }
+                },
                 { 
                     data: 'id',
                     render: function(data) {

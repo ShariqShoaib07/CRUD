@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Initialize variables and error array
 $errors = [];
 $name = $email = $phone = '';
+$street = $city = $state = $postal_code = $country = '';
 $imageName = null;
 
 // Validate and sanitize inputs
@@ -37,7 +38,38 @@ try {
 
     $phone = !empty($_POST['phone']) ? trim($_POST['phone']) : '';
 
-    // Check if email exists (using prepared statement)
+    // Address validation
+    if (empty($_POST['street'])) {
+        $errors[] = "Street address is required";
+    } else {
+        $street = trim($_POST['street']);
+    }
+
+    if (empty($_POST['city'])) {
+        $errors[] = "City is required";
+    } else {
+        $city = trim($_POST['city']);
+    }
+
+    if (empty($_POST['state'])) {
+        $errors[] = "State/Province is required";
+    } else {
+        $state = trim($_POST['state']);
+    }
+
+    if (empty($_POST['postal_code'])) {
+        $errors[] = "Postal code is required";
+    } else {
+        $postal_code = trim($_POST['postal_code']);
+    }
+
+    if (empty($_POST['country'])) {
+        $errors[] = "Country is required";
+    } else {
+        $country = trim($_POST['country']);
+    }
+
+    // Check if email exists
     $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
@@ -94,24 +126,38 @@ try {
         $_SESSION['form_values'] = [
             'name' => htmlspecialchars($name),
             'email' => htmlspecialchars($email),
-            'phone' => htmlspecialchars($phone)
+            'phone' => htmlspecialchars($phone),
+            'street' => htmlspecialchars($street),
+            'city' => htmlspecialchars($city),
+            'state' => htmlspecialchars($state),
+            'postal_code' => htmlspecialchars($postal_code),
+            'country' => htmlspecialchars($country)
         ];
         $_SESSION['errors'] = $errors;
         header("Location: create.php");
         exit();
     }
 
-    // Proceed with insertion using prepared statement
+    // Insert into users table
     $stmt = $conn->prepare("INSERT INTO users (name, email, phone, image) VALUES (?, ?, ?, ?)");
     $imageParam = !empty($imageName) ? $imageName : null;
     $stmt->bind_param("ssss", $name, $email, $phone, $imageParam);
-    
+
     if ($stmt->execute()) {
-        // Clear any stored form values on success
+        // Get the new user ID
+        $user_id = $conn->insert_id;
+
+        // Insert into addresses table
+        $stmt_addr = $conn->prepare("INSERT INTO addresses (user_id, street, city, state, postal_code, country) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt_addr->bind_param("isssss", $user_id, $street, $city, $state, $postal_code, $country);
+        $stmt_addr->execute();
+        $stmt_addr->close();
+
+        // Clear stored form values
         if (isset($_SESSION['form_values'])) {
             unset($_SESSION['form_values']);
         }
-        $_SESSION['success_message'] = "User created successfully";
+        $_SESSION['success_message'] = "User and address created successfully";
         header("Location: read.php");
         exit();
     } else {
